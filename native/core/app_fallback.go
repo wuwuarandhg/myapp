@@ -56,6 +56,10 @@ func (engine *nativeEngine) fallbackPlayback(ctx context.Context, input nativeIn
 	if len([]rune(key)) < 2 {
 		return nativePlan{}, "", false
 	}
+	episode := input.Index
+	if episode < 1 {
+		episode = 1
+	}
 	for _, candidateSource := range fallbackSearchSources {
 		if candidateSource == source || !nativeSourceAvailable(candidateSource) || !duanjuSupportsSearch(candidateSource) {
 			continue
@@ -72,7 +76,7 @@ func (engine *nativeEngine) fallbackPlayback(ctx context.Context, input nativeIn
 			if err != nil || len(chapters) == 0 {
 				break
 			}
-			index := fallbackEpisodeIndex(chapters, input.Index)
+			index := fallbackEpisodeIndex(chapters, episode)
 			if index < 0 {
 				break
 			}
@@ -86,7 +90,7 @@ func (engine *nativeEngine) fallbackPlayback(ctx context.Context, input nativeIn
 			if err != nil {
 				continue
 			}
-			return plan, fmt.Sprintf("原站源第 %d 集不可播放，已改用%s播放同一集", input.Index, duanjuSourceName(candidateSource)), true
+			return plan, fmt.Sprintf("原站源第 %d 集不可播放，已改用%s播放同一集", episode, duanjuSourceName(candidateSource)), true
 		}
 	}
 	return nativePlan{}, "", false
