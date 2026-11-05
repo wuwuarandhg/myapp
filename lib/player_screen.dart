@@ -1036,6 +1036,9 @@ class _PlayerScreenState extends State<PlayerScreen>
           setState(() {
             _loading = false;
           });
+          if (plan.notice.isNotEmpty) {
+            _notice(plan.notice);
+          }
           _danmaku.setPlan(plan);
           _syncDanmaku();
           _acknowledgeHandoff();

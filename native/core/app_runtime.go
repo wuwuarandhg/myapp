@@ -139,6 +139,7 @@ type nativePlan struct {
 	Session         string            `json:"session,omitempty"`
 	RouteIndex      int               `json:"routeIndex"`
 	RouteCount      int               `json:"routeCount"`
+	Notice          string            `json:"notice,omitempty"`
 }
 
 type nativeEngine struct {
@@ -752,6 +753,10 @@ func (engine *nativeEngine) nativeResolve(ctx context.Context, input nativeInput
 	task := Task{DramaID: input.Drama.ID, DramaTitle: input.Drama.Title, Chapter: input.Chapter, Index: input.Index}
 	media, err := engine.downloader.resolveProviderMedia(ctx, task)
 	if err != nil {
+		if plan, notice, found := engine.fallbackPlayback(ctx, input); found {
+			plan.Notice = notice
+			return plan, nil
+		}
 		return nativePlan{}, err
 	}
 	choice := nativePlaybackChoices(media, input.Quality)

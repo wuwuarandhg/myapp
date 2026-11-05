@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"regexp"
 	"slices"
@@ -221,20 +222,29 @@ func (d *Downloader) resolveHongguoMedia(ctx context.Context, task Task) (provid
 
 func (d *Downloader) resolveHongguoWebMedia(ctx context.Context, seriesID, videoID string) (providerMedia, error) {
 	pageURL := hongguoBaseURL + "/player/" + url.PathEscape(seriesID) + "/" + url.PathEscape(videoID)
-	body, err := d.fetchProviderText(ctx, pageURL, hongguoBaseURL+"/")
-	if err != nil {
-		return providerMedia{}, err
-	}
-	page := routerLoaderMap(parseRouterData(body), "player_", "player_page")
-	if mapString(page, "vid") != videoID || mapString(page, "series_id") != seriesID {
-		return providerMedia{}, fmt.Errorf("红果未返回所请求的剧集，可能仅允许网页试看；请在站点确认该集的访问权限")
+	body, pageErr := d.fetchProviderText(ctx, pageURL, hongguoBaseURL+"/")
+	var page map[string]any
+	if pageErr == nil {
+		page = routerLoaderMap(parseRouterData(body), "player_", "player_page")
+		if len(page) > 0 && (mapString(page, "vid") != videoID || mapString(page, "series_id") != seriesID) {
+			page = nil
+		}
 	}
 	info, _ := page["video_player_info"].(map[string]any)
 	addresses := hongguoMediaAddresses(info)
+	duration, _ := strconv.ParseFloat(mapString(info, "duration"), 64)
+	seo, _ := page["publicVideoSeo"].(map[string]any)
+	if len(addresses) == 0 {
+		if public := hongguoPublicMediaAddress(d.providerBaseURL(sourceHongguo), videoID, seo); public != "" && d.hongguoPublicMediaReachable(ctx, public) {
+			addresses = []string{public}
+			if seconds, err := strconv.ParseFloat(mapString(seo, "durationSeconds"), 64); err == nil {
+				duration = seconds
+			}
+		}
+	}
 	if len(addresses) == 0 {
 		return providerMedia{}, fmt.Errorf("红果该集未提供公开播放地址，可能需要登录或 App 授权；不会将试看集冒充该集下载")
 	}
-	duration, _ := strconv.ParseFloat(mapString(info, "duration"), 64)
 	media := providerMedia{URL: addresses[0], Referer: d.providerBaseURL(sourceHongguo) + "/", Duration: time.Duration(duration * float64(time.Second))}
 	for _, address := range addresses {
 		variant := media
@@ -242,6 +252,39 @@ func (d *Downloader) resolveHongguoWebMedia(ctx context.Context, seriesID, video
 		media.Variants = append(media.Variants, variant)
 	}
 	return media, nil
+}
+
+func hongguoPublicEpisode(seo map[string]any) bool {
+	if seo == nil {
+		return false
+	}
+	if available, ok := seo["available"].(bool); ok && !available {
+		return false
+	}
+	return mapString(seo, "itemId") != ""
+}
+
+func hongguoPublicMediaAddress(base, videoID string, seo map[string]any) string {
+	if !hongguoNumericID.MatchString(videoID) || (seo != nil && !hongguoPublicEpisode(seo)) {
+		return ""
+	}
+	return strings.TrimRight(base, "/") + "/video/public/" + url.PathEscape(videoID) + "/360p.mp4"
+}
+
+func (d *Downloader) hongguoPublicMediaReachable(ctx context.Context, address string) bool {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+	if err != nil {
+		return false
+	}
+	request.Header.Set("User-Agent", duanjuUserAgent)
+	request.Header.Set("Referer", d.providerBaseURL(sourceHongguo)+"/")
+	request.Header.Set("Range", "bytes=0-1023")
+	response, err := d.doPreparedCatalogRequest(request, 15*time.Second, nil)
+	if err != nil {
+		return false
+	}
+	response.Body.Close()
+	return response.StatusCode == http.StatusOK || response.StatusCode == http.StatusPartialContent
 }
 
 func hongguoDramaFromAny(v any, category string) Drama {
