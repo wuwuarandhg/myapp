@@ -75,9 +75,16 @@ jobs:
           flutter-version: '3.47.4'
           channel: stable
           cache: true
-      - uses: android-actions/setup-android@v3
       - name: Install Android NDK
-        run: yes | sdkmanager "ndk;28.2.13676358"
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "Android SDK: $SDK"
+          if [ -d "$SDK/ndk/28.2.13676358" ]; then exit 0; fi
+          SDKMGR=$(find "$SDK" -path '*/cmdline-tools/*' -name sdkmanager -type f 2>/dev/null | head -1)
+          if [ -z "$SDKMGR" ]; then SDKMGR=$(command -v sdkmanager || true); fi
+          if [ -z "$SDKMGR" ]; then echo "sdkmanager 未找到"; exit 1; fi
+          yes | "$SDKMGR" --sdk_root="$SDK" --install "ndk;28.2.13676358"
+          test -d "$SDK/ndk/28.2.13676358"
       - name: Configure Android signing
         run: python scripts/configure_signing.py
         env:
@@ -120,9 +127,7 @@ jobs:
           flutter-version: '3.47.4'
           channel: stable
           cache: true
-      - uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
+      - run: choco install mingw --no-progress -y
       - run: python scripts/build_windows.py ${{ matrix.arguments }}
       - run: choco install ffmpeg --no-progress -y
       - run: python scripts/smoke_windows.py ${{ matrix.arguments }}
