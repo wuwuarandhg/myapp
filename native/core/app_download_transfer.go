@@ -39,6 +39,9 @@ type nativeDownloadFileState struct {
 
 func (manager *nativeDownloads) transferMedia(ctx context.Context, job nativeDownloadJob, media providerMedia) (nativeDownloadResult, error) {
 	ctx = providerMediaContext(ctx, media.credentials)
+	if media.UserAgent != "" {
+		ctx = context.WithValue(ctx, mediaUserAgentKey{}, media.UserAgent)
+	}
 	bundle := nativeDownloadBundle{quality: media.Quality, playlists: map[string][]byte{}}
 	parsed, err := url.Parse(media.URL)
 	if err != nil || !isProviderHTTPMediaURL(media.URL) {
@@ -173,6 +176,13 @@ func (manager *nativeDownloads) downloadFile(ctx context.Context, address, refer
 	return 0, errors.New("服务器无法恢复下载，请重试")
 }
 
+type mediaUserAgentKey struct{}
+
+func mediaUserAgentFrom(ctx context.Context) string {
+	value, _ := ctx.Value(mediaUserAgentKey{}).(string)
+	return value
+}
+
 func (manager *nativeDownloads) downloadFileAttempt(ctx context.Context, address, referer, target string, key bool, offset int64, old nativeDownloadFileState, progress func(int64, int64)) (int64, bool, error) {
 	if !isProviderHTTPMediaURL(address) {
 		return 0, false, errors.New("媒体下载地址无效")
@@ -185,7 +195,7 @@ func (manager *nativeDownloads) downloadFileAttempt(ctx context.Context, address
 	if err != nil {
 		return 0, false, err
 	}
-	request.Header.Set("User-Agent", userAgent)
+	request.Header.Set("User-Agent", firstNonEmpty(mediaUserAgentFrom(ctx), userAgent))
 	request.Header.Set("Referer", referer)
 	request.Header.Set("Accept-Encoding", "identity")
 	if offset > 0 {

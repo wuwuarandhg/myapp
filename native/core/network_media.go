@@ -22,7 +22,9 @@ type huangguoPreviewSession struct {
 }
 
 func mediaRequestHeaders(request *http.Request, referer string) {
-	request.Header.Set("User-Agent", userAgent)
+	if request.Header.Get("User-Agent") == "" {
+		request.Header.Set("User-Agent", userAgent)
+	}
 	request.Header.Set("Referer", referer)
 	request.Header.Set("Accept", "*/*")
 	request.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
