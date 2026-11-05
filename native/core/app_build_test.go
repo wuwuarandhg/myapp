@@ -11,14 +11,22 @@ import (
 )
 
 func TestNativeBuildAuthorization(t *testing.T) {
-	for _, source := range []string{sourceHongguo, sourceHuangdou, sourceHuangguoVideo, sourceHuangguoAI, sourceCloudFront, sourceDSD, "unknown"} {
-		allowed := source == sourceHongguo || buildAllSources == "true" && source != "unknown"
+	for _, source := range []string{sourceHongguo, sourceHuangdou, sourceHuangju, sourceHuangguoVideo, sourceHuangguoAI, sourceCloudFront, sourceDSD, sourceYaguo, "unknown"} {
+		allowed := source == sourceHongguo || buildAllSources == "true" && playableProviderSources[source]
 		for _, action := range []string{"catalog", "cached", "sourceStatus", "sourceJob", "cancelSourceJob", "detail", "cover", "resolve", "enqueueDownloads", "localPlayback"} {
 			input := nativeInput{Action: action, Source: source, Drama: nativeDrama{ID: source + ":123", Source: source}}
 			err := nativeAuthorizeInput(input)
 			if (err == nil) != allowed {
 				t.Fatalf("%s %s: allowed=%v, error=%v", action, source, allowed, err)
 			}
+		}
+	}
+	for _, source := range []string{sourceHuangdou, sourceYeguo, sourceGuanguo, sourceWuguo} {
+		if playableProviderSources[source] {
+			t.Fatalf("unverified source %s is exposed as playable", source)
+		}
+		if buildAllSources == "true" && nativeSourceAvailable(source) {
+			t.Fatalf("unverified source %s passed availability in full edition", source)
 		}
 	}
 	for _, input := range []nativeInput{
@@ -41,7 +49,7 @@ func TestNativeBuildAuthorization(t *testing.T) {
 func TestNativeBuildPreservesForeignDownloadRecordsAndRestrictsScheduling(t *testing.T) {
 	manager := downloadTestManager(t)
 	records := []*nativeDownloadRecord{}
-	for index, source := range []string{sourceHongguo, sourceHuangdou, sourceHuangguoVideo, sourceHuangguoAI, sourceCloudFront, sourceDSD} {
+	for index, source := range []string{sourceHongguo, sourceHuangju, sourceHuangguoVideo, sourceHuangguoAI, sourceCloudFront, sourceDSD} {
 		drama := nativeDrama{ID: source + ":123", Source: source, Title: "合成下载"}
 		record := &nativeDownloadRecord{nativeDownloadJob: nativeDownloadJob{
 			ID: nativeDownloadID(drama.ID, 1), Drama: drama, Index: 1,
@@ -91,7 +99,7 @@ func TestNativeBuildPreservesForeignDownloadRecordsAndRestrictsScheduling(t *tes
 			t.Fatal("allowed download did not start")
 		}
 	}
-	if !seen[sourceHongguo] || buildAllSources == "true" && !seen[sourceHuangdou] {
+	if !seen[sourceHongguo] || buildAllSources == "true" && !seen[sourceHuangju] {
 		t.Fatalf("wrong sources scheduled: %v", seen)
 	}
 	if buildAllSources != "true" {

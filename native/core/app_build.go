@@ -6,9 +6,26 @@ var buildAllSources = "false"
 
 var errNativeBuildSource = errors.New("当前版本不包含此站源")
 
+var playableProviderSources = map[string]bool{
+	sourceHongguo:       true,
+	sourceHuangju:       true,
+	sourceDSD:           true,
+	sourceHuangguoAI:    true,
+	sourceHuangguoVideo: true,
+	sourceCloudFront:    true,
+	sourceYaguo:         true,
+	sourceMaoguo:        true,
+	sourceFanguo:        true,
+	sourceHeguo:         true,
+	sourceXingguo:       true,
+}
+
 func nativeSourceAvailable(source string) bool {
 	source = canonicalProviderSource(source)
-	return source == sourceHongguo || buildAllSources == "true" && isHuangguoProviderSource(source)
+	if source == sourceHongguo {
+		return true
+	}
+	return buildAllSources == "true" && playableProviderSources[source]
 }
 
 func nativeDramaAvailable(drama nativeDrama) bool {

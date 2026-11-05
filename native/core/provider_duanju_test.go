@@ -421,8 +421,11 @@ func TestDuanjuSourceAvailabilityFollowsBuildVariant(t *testing.T) {
 		t.Fatal("hongguo-only build must not expose duanju sources")
 	}
 	buildAllSources = "true"
-	if !nativeSourceAvailable(sourceYaguo) || !nativeSourceAvailable(sourceWuguo) {
-		t.Fatal("all-sources build must expose duanju sources")
+	if !nativeSourceAvailable(sourceYaguo) || !nativeSourceAvailable(sourceMaoguo) {
+		t.Fatal("all-sources build must expose verified duanju sources")
+	}
+	if nativeSourceAvailable(sourceWuguo) || nativeSourceAvailable(sourceGuanguo) {
+		t.Fatal("all-sources build must hide unverified duanju sources")
 	}
 	buildAllSources = previous
 }
