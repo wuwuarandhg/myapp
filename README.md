@@ -159,7 +159,7 @@ CHECK_LIVE_ALL=true CHECK_LIVE_SOURCES="yaguo,maoguo" go test -run TestLiveAllSo
 
 站点白名单在 `native/core/app_build.go` 的 `playableProviderSources` 与 `lib/models.dart` 的 `knownValues` 两处，新增入口需同步修改并重新实测。站点恢复后可先单独复测，再将其加入白名单。
 
-本次实测在开发机网络完成，结果只反映当时的源站状态；源站策略、域名和签名随时可能变化，列表应在复测后调整。CI 打包不再依赖静态检查通过，检查结果仍单独展示。
+本次实测在开发机网络完成，结果只反映当时的源站状态；源站策略、域名和签名随时可能变化，列表应在复测后调整。GitHub Actions 只构建 Android，不再在打包前执行静态检查。
 
 ### 主题与导航
 
@@ -732,15 +732,13 @@ SR-1、SR-2 与 SR-4 已接入源码，小型动漫 CNN 也包含在本轮；SR-
 
 将 `guoapp` 源码发布到仓库根目录，保留 `.github`、锁文件、`native` 和平台工程；不用上传 SDK、依赖目录、SO、DLL 或缓存。
 
-推送 `main` / `master`、`v*` 标签、提交 PR，或手动运行 **Build app packages**，会先检查再构建：
+推送 `main` / `master`、`v*` 标签，或手动运行 **Build Android APK**，会在 Ubuntu 上直接构建两版 Android 安装包：
 
 | 红果版 Artifact | 全站源版 Artifact | 内容 |
 | --- | --- | --- |
-| `hongguojian-android` | `zhenguojian-android` | 三种架构 APK 和 SHA256 |
-| `hongguojian-windows` | `zhenguojian-windows` | 完整 ZIP 和 SHA256；从解压包检查原生核心、FFprobe、换封装及播放器启动 |
-| `hongguojian-ios-unsigned` | `zhenguojian-ios-unsigned` | 未签名 `.app` ZIP 和 SHA256，不能直接当已签名 IPA 安装 |
+| `hongguojian-android` | `zhenguojian-android` | ARMv7 / ARM64 / x86_64 APK 和 SHA256 |
 
-Actions 分别传入默认参数与 `--all-sources` 构建两版，Flutter 和 Go 回归也覆盖两种编译配置。产物保留 14 天，不自动创建 GitHub Release。首次平台构建结果以实际 Actions 输出为准。
+Actions 分别传入默认参数与 `--all-sources` 构建两版，产物保留 14 天，不自动创建 GitHub Release。按用户 2026-11-05 的要求，工作流只打包 Android，不再构建 Windows 和 iOS，也不在打包前执行静态检查；检查命令仍保留在“集中检查与真机回归”，供以后集中执行。首次平台构建结果以实际 Actions 输出为准。
 
 Android 正式发布持续使用同一签名并递增构建号，在仓库 Secrets 配置：
 
