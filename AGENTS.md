@@ -45,6 +45,7 @@
 - `lib/` 保持扁平：页面、播放器、下载、本地媒体库与 FFI 封装（`core_bridge.dart`）；新文件按功能用 snake_case 命名，不建子目录。
 - `native/core` 是 Go 站源核心（`provider_*.go` 承载各站源协议，另有缓存、下载、弹幕、局域网逻辑），`native/bridge/main.go` 是 C ABI 入口；站源解析在 Go 侧实现并配套 `*_test.go`，Dart 经 FFI 调用，不重复实现协议。Go 模块名为 `duanjuapp/native`。
 - 播放使用 media_kit / libmpv；FFmpegKit 仅用于合并与导出，不参与播放和下载转码。`packages/media_kit_libs_windows_video` 经 pubspec `dependency_overrides` 本地固定，Windows 媒体依赖不随意升级。
+- 红果取流首选 `github.com/beilunyang/openhongguo`（Apache-2.0，匿名设备 + 官方签名，可返回全部分集码流与 CENC 密钥），匿名档案保存在应用数据目录；旧 App 接口、网页公开文件与备用解析服务保留为回退，顺序见 `native/core/provider_hongguo.go` 的 `resolveHongguoMedia`。升级该依赖后需重跑 `CHECK_LIVE_VIP=true go test -run TestLiveHongguoOpenPlayback ./core`（需要时自行补回该用例）。
 - 两版构建：默认红果鉴（仅红果站源）与全站源真果鉴。三处开关必须一致：构建脚本 `--all-sources`、Flutter `--dart-define=ALL_SOURCES=true`、Go ldflag `buildAllSources=true`；应用启动时校验，避免原生库混装。
 - 全站源版只开放实测可播放的站源：白名单在 `native/core/app_build.go` 的 `playableProviderSources` 与 `lib/models.dart` 的 `knownValues`，两处必须同步；新增或恢复站源先跑 `CHECK_LIVE_ALL=true` 复测，通过后再加入白名单。其余站源解析代码保留，不删除。
 - 构建入口：首次调试先 `python3 scripts/build_native.py --platform android --abi arm64-v8a`（Windows 用 `--platform windows`），再 `python3 scripts/build_android.py`、`.\scripts\build_windows.ps1`、`python3 scripts/build_ios.py`，均可加 `--all-sources` 和国内镜像开关；产物在 `dist/`。工具链：Flutter 3.47.4、Dart 3.12+、Go 1.24.1+、JDK 17、SDK 36、NDK 28.2.13676358。完整命令见 README「开发与构建」。
